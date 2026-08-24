@@ -1,0 +1,38 @@
+# Pre-commit checks for this Apps Script project.
+#
+# Install the hook once per clone with:  pre-commit install
+# Run against everything (not just staged files):  pre-commit run --all-files
+#
+# The ESLint hook runs in an environment pre-commit builds itself, so the
+# checks work without `npm install`. That environment is separate from
+# node_modules, so the versions pinned in `additional_dependencies` below must
+# be bumped together with the matching devDependencies in package.json.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # appsscript.json is the Apps Script manifest — a syntax error there
+      # breaks deployment, so validate it before it can be committed.
+      - id: check-json
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v10.9.0
+    hooks:
+      # Enforces the Google JavaScript style guide; see eslint.config.mjs for
+      # how the config is layered and why each dependency is needed.
+      - id: eslint
+        files: \.(js|gs|mjs)$
+        args: [--fix]
+        additional_dependencies:
+          - eslint@10.9.0
+          - '@eslint/js@10.0.1'
+          - '@eslint/eslintrc@3.3.6'
+          - eslint-config-google@0.14.0
+          - eslint-plugin-googleappsscript@1.0.5
