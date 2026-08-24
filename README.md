@@ -14,6 +14,9 @@ deleted.
 | --- | --- |
 | `Code.js` | The `archiveOldEmails()` function — search patterns, age cutoff, and archive logic |
 | `appsscript.json` | Apps Script project manifest (timezone, V8 runtime, logging) |
+| `eslint.config.mjs` | ESLint flat config applying the Google JavaScript style guide |
+| `package.json` | Lint tooling and the `lint-staged` pre-commit task list |
+| `.husky/pre-commit` | Git hook that runs the style checks against staged files |
 
 `.clasp.json` is intentionally **not** committed — it holds the script ID of a specific Apps Script
 project, so you generate your own in the setup below.
@@ -126,6 +129,72 @@ In the Apps Script editor, open **Triggers** (the alarm-clock icon) → **Add Tr
 - Type: **Day timer** (a daily run is plenty, since the cutoff is measured in days)
 
 That's it — the inbox stays clean on its own from here.
+
+## Linting (Google JavaScript style)
+
+Code is linted against the
+[Google JavaScript style guide](https://google.github.io/styleguide/jsguide.html)
+via ESLint, and a pre-commit hook enforces it so unstyled code cannot land.
+
+### One-time setup after cloning
+
+```bash
+npm install
+```
+
+`npm install` runs the `prepare` script, which installs the git hook via
+[husky](https://typicode.github.io/husky/). Nothing else is required — the hook
+lives in `.husky/pre-commit` and is version-controlled.
+
+### Commands
+
+| Command | What it does |
+| --- | --- |
+| `npm run lint` | Check every `.js` / `.gs` file; non-zero exit on any problem |
+| `npm run lint:fix` | Same, but auto-fix quotes, indentation, commas, `var` |
+| `npm run lint:manifest` | Confirm `appsscript.json` is still valid JSON |
+
+### What the hook does
+
+On `git commit`, [lint-staged](https://github.com/lint-staged/lint-staged) runs
+`eslint --fix` against **staged** files only. Auto-fixable problems are fixed
+and re-staged silently; anything left unfixable (an undefined global, a line
+over 80 characters) fails the commit with the error list.
+
+To bypass it in an emergency:
+
+```bash
+git commit --no-verify
+```
+
+### How the config is put together
+
+`eslint.config.mjs` composes three layers, and the comments there explain why
+each is needed:
+
+1. **`@eslint/js` recommended** — correctness rules (`no-undef`,
+   unreachable code). Necessary because `eslint-config-google` is purely
+   stylistic; on its own it will happily pass a misspelled `GmailApp`.
+2. **`eslint-config-google`** — the actual Google style guide: 2-space indent,
+   80-column limit, single quotes, trailing commas, `const`/`let` over `var`.
+   It still ships in the legacy eslintrc format, so it is bridged into flat
+   config with `FlatCompat`.
+3. **Apps Script globals** — `eslint-plugin-googleappsscript` supplies the
+   names of the Apps Script services (`GmailApp`, `Utilities`, `Session`, ...)
+   so `no-undef` does not flag them. `console` is added on top, since the V8
+   runtime exposes it for Cloud Logging.
+
+Two caveats worth knowing:
+
+- `eslint-config-google` references `valid-jsdoc` and `require-jsdoc`, which
+  ESLint removed from core in v9. The config drops any rule ESLint no longer
+  defines, computed against the builtin registry rather than hard-coded, so
+  this keeps working as more rules are retired. The practical effect is that
+  **JSDoc comments are not enforced** — add `eslint-plugin-jsdoc` if you want
+  that back.
+- `no-unused-vars` is relaxed to `vars: 'local'` because Apps Script entry
+  points like `archiveOldEmails` are called by triggers, never by other code,
+  and would otherwise be reported as unused.
 
 ## Safety notes
 
