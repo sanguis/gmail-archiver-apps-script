@@ -28,7 +28,7 @@ repos:
       # Enforces the Google JavaScript style guide; see eslint.config.mjs for
       # how the config is layered and why each dependency is needed.
       - id: eslint
-        files: \.(js|gs|mjs)$
+        files: \.(js|gs|cjs|mjs)$
         args: [--fix]
         additional_dependencies:
           - eslint@10.9.0
@@ -36,3 +36,24 @@ repos:
           - '@eslint/eslintrc@3.3.6'
           - eslint-config-google@0.14.0
           - eslint-plugin-googleappsscript@1.0.5
+
+  - repo: local
+    hooks:
+      # Deploys to the Apps Script project named in .clasp.json. Runs only on
+      # `git push`, never on commit, so local commits stay offline and cheap.
+      #
+      # --force is required because a hook has no terminal to answer clasp's
+      # "overwrite the remote manifest?" prompt, which would otherwise hang.
+      - id: clasp-push
+        name: clasp push (deploy to Apps Script)
+        entry: clasp
+        args: [push, --force]
+        language: node
+        additional_dependencies: ['@google/clasp@3.4.0']
+        stages: [pre-push]
+        # Not a file-driven check: it deploys the project as a whole, so it
+        # must run regardless of which files changed and must not receive a
+        # filename list as arguments.
+        pass_filenames: false
+        always_run: true
+        verbose: true

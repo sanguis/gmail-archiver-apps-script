@@ -14,9 +14,8 @@ deleted.
 | --- | --- |
 | `Code.js` | The `archiveOldEmails()` function — search patterns, age cutoff, and archive logic |
 | `appsscript.json` | Apps Script project manifest (timezone, V8 runtime, logging) |
-| `eslint.config.mjs` | ESLint flat config applying the Google JavaScript style guide |
-| `.pre-commit-config.yaml` | The pre-commit hook definitions (style, manifest, whitespace) |
-| `package.json` | ESLint dependencies for local runs and editor integration |
+| `eslint.config.cjs` | ESLint flat config applying the Google JavaScript style guide |
+| `.pre-commit-config.yaml` | Hook definitions: style and manifest checks, plus deploy on push |
 
 `.clasp.json` is intentionally **not** committed — it holds the script ID of a specific Apps Script
 project, so you generate your own in the setup below.
@@ -130,7 +129,7 @@ In the Apps Script editor, open **Triggers** (the alarm-clock icon) → **Add Tr
 
 That's it — the inbox stays clean on its own from here.
 
-## Linting (Google JavaScript style)
+## Linting and git hooks
 
 Code is linted against the
 [Google JavaScript style guide](https://google.github.io/styleguide/jsguide.html)
@@ -143,18 +142,16 @@ edited directly — everything is declared in `.pre-commit-config.yaml`.
 ```bash
 brew install pre-commit   # or: pipx install pre-commit
 pre-commit install
+pre-commit install --hook-type pre-push
 ```
 
-`pre-commit install` writes `.git/hooks/pre-commit`. That file is generated and
-not tracked in git; re-run the command in each new clone.
+Both commands are needed: the first installs `.git/hooks/pre-commit`, the
+second `.git/hooks/pre-push`. Without the second, the deploy hook below never
+runs. Those files are generated and untracked, so re-run both in each clone.
 
-The hooks build their own isolated environments on first run, so `npm install`
-is **not** required for them to work. Install the npm dependencies only if you
-want `npm run lint` or editor ESLint integration:
-
-```bash
-npm install
-```
+Every hook builds its own isolated environment on first run, so there is **no
+`npm install` step and no `node_modules`** — ESLint and its plugins are pinned
+in `.pre-commit-config.yaml` and installed by pre-commit itself.
 
 ### Commands
 
@@ -163,13 +160,13 @@ npm install
 | `pre-commit run --all-files` | Run every hook across the whole repo |
 | `pre-commit run eslint` | Run just the style checks on staged files |
 | `pre-commit autoupdate` | Bump the pinned hook revisions |
-| `npm run lint` / `npm run lint:fix` | Run ESLint directly, outside pre-commit |
+| `pre-commit run --hook-stage pre-push --all-files` | Run the deploy hook by hand — **this pushes to Apps Script** |
 
 ### What runs on commit
 
 | Hook | Purpose |
 | --- | --- |
-| `eslint` (`--fix`) | Google style guide plus correctness rules on `.js` / `.gs` / `.mjs` |
+| `eslint` (`--fix`) | Google style guide plus correctness rules on `.js` / `.gs` / `.cjs` / `.mjs` |
 | `check-json` | Catches a malformed `appsscript.json`, which would break deployment |
 | `check-yaml` | Validates `.pre-commit-config.yaml` itself |
 | `check-merge-conflict` | Blocks stray conflict markers |
@@ -189,9 +186,35 @@ To bypass the hooks in an emergency:
 git commit --no-verify
 ```
 
+### What runs on push
+
+| Hook | Purpose |
+| --- | --- |
+| `clasp-push` | Runs `clasp push --force`, deploying the project to Apps Script |
+
+This is the only hook on the pre-push stage, so ordinary commits stay local and
+offline; code reaches Google only when you actually push. A failed style check
+at commit time therefore cannot deploy broken code.
+
+Three things to know about it:
+
+- **It deploys whatever is in your working directory**, not the commits you are
+  pushing. `clasp push` uploads the files on disk, so uncommitted edits go up
+  too.
+- **It needs `.clasp.json`**, which is untracked. On a fresh clone the hook
+  fails until you have run through the setup above.
+- **`--force` is deliberate.** A hook has no terminal to answer clasp's
+  "overwrite the remote manifest?" prompt, so without it the push would hang.
+
+Skip the deploy for a single push with:
+
+```bash
+git push --no-verify
+```
+
 ### How the ESLint config is put together
 
-`eslint.config.mjs` composes three layers, and the comments there explain why
+`eslint.config.cjs` composes three layers, and the comments there explain why
 each is needed:
 
 1. **`@eslint/js` recommended** — correctness rules (`no-undef`, unreachable
@@ -208,10 +231,16 @@ each is needed:
 
 Three caveats worth knowing:
 
-- **Versions are pinned in two places.** The `additional_dependencies` in
-  `.pre-commit-config.yaml` build the hook's hermetic environment, while
-  `devDependencies` in `package.json` serve local runs and your editor. Bump
-  them together, or the hook and `npm run lint` will disagree.
+- **The config must stay CommonJS (`.cjs`), not `.mjs`.** pre-commit exposes
+  the hook's dependencies through `NODE_PATH`, and ESM `import` ignores
+  `NODE_PATH` while `require` honors it. An `eslint.config.mjs` fails to
+  resolve `@eslint/js` and friends unless a local `node_modules` happens to
+  exist — which is exactly the dependency this setup avoids. ESLint also
+  prefers `.mjs` over `.cjs` when both are present, so do not leave a stray
+  `.mjs` alongside this file.
+- **Dependency versions live only in `.pre-commit-config.yaml`**, under the
+  eslint hook's `additional_dependencies`. Bump them there; `pre-commit
+  autoupdate` handles the hook `rev`s but not these pins.
 - `eslint-config-google` references `valid-jsdoc` and `require-jsdoc`, which
   ESLint removed from core in v9. The config drops any rule ESLint no longer
   defines, computed against the builtin registry rather than hard-coded, so

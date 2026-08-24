@@ -14,6 +14,7 @@ function archiveOldEmails() {
     {type: 'replyto', address: 'health@aws.com'},
     {type: 'from', address: 'no-reply@digicert.com'},
     {type: 'from', address: 'azure-noreply@microsoft.com'},
+    {type: 'from', address: 'no-reply@dtdg.com'},
   ];
 
   const daysOld = 14;
