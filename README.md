@@ -32,9 +32,9 @@ New to `clasp`? Start with the official guide:
 
 ### 1. Clone this repository
 
-```bash
-git clone <this-repo-url> gmailarchiving
-cd gmailarchiving
+```zsh
+git clone https://github.com/sanguis/gmail-archiver-apps-script.git
+cd  gmail-archiver-apps-script.git
 ```
 
 ### 2. Log in to clasp
