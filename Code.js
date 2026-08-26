@@ -12,8 +12,10 @@ function archiveOldEmails() {
     {type: 'from', address: 'no-reply@pagerduty.com'},
     {type: 'from', address: 'jira@submittable.atlassian.net'},
     {type: 'replyto', address: 'health@aws.com'},
+    {type: 'replyto', address: 'f-no-reply@akamai.com'},
     {type: 'from', address: 'no-reply@digicert.com'},
     {type: 'from', address: 'azure-noreply@microsoft.com'},
+    {type: 'from', address: 'no-reply@dtdg.com'},
     {type: 'from', address: 'no-reply@dtdg.com'},
   ];
 
