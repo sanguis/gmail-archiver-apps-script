@@ -1,0 +1,20 @@
+# Which local files `clasp push` uploads to the Apps Script project.
+#
+# The presence of this file REPLACES clasp's built-in defaults rather than
+# adding to them, so the block below is a copy of those defaults (ignore
+# everything, then re-admit the file types Apps Script understands) and the
+# project-specific rules follow it.
+**/**
+!**/appsscript.json
+!**/*.gs
+!**/*.js
+!**/*.ts
+!**/*.html
+.git/**
+node_modules/**
+
+# Only the real private_values.js belongs in the Apps Script project. The
+# example is a template for humans; pushing it too would put a second
+# `globalThis.PRIVATE_VALUES` assignment in the same global scope, and the one
+# that loaded last would win.
+private_values.example.js

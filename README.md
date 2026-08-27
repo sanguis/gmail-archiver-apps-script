@@ -13,12 +13,18 @@ deleted.
 | File | Purpose |
 | --- | --- |
 | `Code.js` | The `archiveOldEmails()` function — search patterns, age cutoff, and archive logic |
+| `private_values.example.js` | Template for `private_values.js`, the optional file holding your own values |
 | `appsscript.json` | Apps Script project manifest (timezone, V8 runtime, logging) |
 | `eslint.config.cjs` | ESLint flat config applying the Google JavaScript style guide |
+| `.claspignore` | Which local files `clasp push` uploads to the Apps Script project |
 | `.pre-commit-config.yaml` | Hook definitions: style and manifest checks, plus deploy on push |
 
-`.clasp.json` is intentionally **not** committed — it holds the script ID of a specific Apps Script
-project, so you generate your own in the setup below.
+Two files are intentionally **not** committed, and you create both during setup below:
+
+- `.clasp.json` — holds the script ID of one specific Apps Script project.
+- `private_values.js` — holds values specific to *your* organization, so they do not end up in a
+  public repository. It is optional: with no such file the script still runs, just without the
+  patterns that depend on those values.
 
 ## Prerequisites
 
@@ -73,13 +79,61 @@ Already have a script you want to push to? Skip this step and create `.clasp.jso
 
 You can find the script ID in the Apps Script editor under **Project Settings**.
 
-### 4. Push the code up
+### 4. Create your private values file
+
+Some search patterns are built from values that are specific to your organization — the Atlassian
+site name, for instance, which turns into `jira@<slug>.atlassian.net`. Those live in an optional,
+gitignored `private_values.js` so they stay out of a public repository.
+
+Copy the committed template and edit it:
+
+```bash
+cp private_values.example.js private_values.js
+```
+
+```js
+globalThis.PRIVATE_VALUES = {
+  // Your Atlassian site name — the `foo` in foo.atlassian.net.
+  companySlug: 'foo',
+};
+```
+
+| Value | Used for |
+| --- | --- |
+| `companySlug` | Building the `jira@<slug>.atlassian.net` and `confluence@<slug>.atlassian.net` patterns |
+
+**This step is optional.** `Code.js` reads the values with
+`globalThis.PRIVATE_VALUES || {}`, so if you skip it the script simply runs with the vendor
+patterns only and no Atlassian ones. Apps Script has no `require`: every file in a project is
+evaluated into one shared global scope, which is why the file assigns to `globalThis` instead of
+declaring a `const`, and why a missing file is just a missing property rather than an error.
+`.clasp.json` lists `private_values.js` first in `filePushOrder`, so it is the first file in the
+project and its values are in place before anything else runs.
+
+Note that `private_values.example.js` is listed in `.claspignore` and is therefore **not** pushed
+to Apps Script — only the real `private_values.js` is. If both were pushed, whichever loaded last
+would win and the placeholder `foo` could silently replace your real values.
+
+### 5. Push the code up
 
 ```bash
 npx @google/clasp push
 ```
 
-### 5. Configure your search patterns
+This uploads `Code.js`, `appsscript.json`, and — if you created it in step 4 — `private_values.js`.
+Confirm what will be sent before pushing:
+
+```bash
+npx @google/clasp status
+```
+
+`private_values.js` should appear under **Tracked files** and `private_values.example.js` under
+**Untracked files**. Re-run `push` after any local edit, including edits to `private_values.js`;
+because that file is gitignored, a commit is not what carries it to Apps Script, the push is. If
+you have the git hooks installed (see [Linting and git hooks](#linting-and-git-hooks)) then
+`git push` runs `clasp push` for you.
+
+### 6. Configure your search patterns
 
 Open the project in the Apps Script editor:
 
@@ -87,17 +141,28 @@ Open the project in the Apps Script editor:
 npx @google/clasp open-script
 ```
 
-In `Code.js`, edit the `searchPatterns` array to match the mail *you* want archived, and set
-`daysOld` to how long a thread should linger before it gets archived:
+In `Code.js`, edit the `patterns` array inside `buildSearchPatterns()` to match the mail *you* want
+archived, and set `daysOld` in `archiveOldEmails()` to how long a thread should linger before it
+gets archived:
 
 ```js
-const searchPatterns = [
-  { type: "from",    address: "no-reply@example.com" },
-  { type: "replyto", address: "alerts@example.com" },
-  { type: "to",      address: "my-alias@example.com" }
-];
+function buildSearchPatterns(values) {
+  const patterns = [
+    {type: 'from', address: 'no-reply@example.com'},
+    {type: 'replyto', address: 'alerts@example.com'},
+    {type: 'to', address: 'my-alias@example.com'},
+  ];
 
-var daysOld = 14;
+  // Patterns that need a value from private_values.js go behind a check, so
+  // the script still works for anyone who skipped that file.
+  if (values.companySlug) {
+    patterns.push(
+        {type: 'from', address: `jira@${values.companySlug}.atlassian.net`},
+    );
+  }
+
+  return patterns;
+}
 ```
 
 `type` is any Gmail search operator that takes an address — `from`, `to`, `cc`, `replyto`. The
@@ -107,7 +172,7 @@ You can also edit `Code.js` locally and re-run `npx @google/clasp push` — that
 workflow if you want your changes tracked in git. Use `npx @google/clasp pull` to bring editor-side
 changes back down.
 
-### 6. Authorize and test-run
+### 7. Authorize and test-run
 
 In the Apps Script editor, select the `archiveOldEmails` function and click **Run**. The first run
 prompts for authorization — Gmail access is inferred from the script's use of `GmailApp`, so you'll
@@ -119,7 +184,7 @@ Because the project is unverified you'll see a "Google hasn't verified this app"
 
 Check the execution log to confirm the counts look right before automating it.
 
-### 7. Schedule it
+### 8. Schedule it
 
 In the Apps Script editor, open **Triggers** (the alarm-clock icon) → **Add Trigger**:
 
@@ -266,4 +331,6 @@ Three caveats worth knowing:
 | `User has not enabled the Apps Script API` | Enable it at <https://script.google.com/home/usersettings> |
 | `Could not read API credentials` | Re-run `npx @google/clasp login` |
 | `.clasp.json` not found | You skipped step 3 — create the project or write the file by hand |
+| Atlassian mail is not being archived | `private_values.js` is missing or has no `companySlug`; see step 4, then push again |
+| Placeholder `foo.atlassian.net` in the deployed patterns | `private_values.example.js` reached the project — check it is still listed in `.claspignore` |
 | Push overwrote your manifest | `git checkout appsscript.json` and push again |
