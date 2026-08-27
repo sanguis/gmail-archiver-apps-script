@@ -1,3 +1,30 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Gmail Archiving](#gmail-archiving)
+  - [Contents](#contents)
+  - [Prerequisites](#prerequisites)
+  - [Importing the script into your Gmail account](#importing-the-script-into-your-gmail-account)
+    - [1. Clone this repository](#1-clone-this-repository)
+    - [2. Log in to clasp](#2-log-in-to-clasp)
+    - [3. Create your own Apps Script project](#3-create-your-own-apps-script-project)
+    - [4. Create your private values file](#4-create-your-private-values-file)
+    - [5. Push the code up](#5-push-the-code-up)
+    - [6. Configure your search patterns](#6-configure-your-search-patterns)
+    - [7. Authorize and test-run](#7-authorize-and-test-run)
+    - [8. Schedule it](#8-schedule-it)
+  - [Linting and git hooks](#linting-and-git-hooks)
+    - [One-time setup after cloning](#one-time-setup-after-cloning)
+    - [Commands](#commands)
+    - [What runs on commit](#what-runs-on-commit)
+    - [What runs on push](#what-runs-on-push)
+    - [How the ESLint config is put together](#how-the-eslint-config-is-put-together)
+  - [Safety notes](#safety-notes)
+  - [Troubleshooting](#troubleshooting)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Gmail Archiving
 
 A small [Google Apps Script](https://developers.google.com/apps-script) that automatically archives
