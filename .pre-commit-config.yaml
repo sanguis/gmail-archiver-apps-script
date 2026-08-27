@@ -41,13 +41,9 @@ repos:
     hooks:
       # Deploys to the Apps Script project named in .clasp.json. Runs only on
       # `git push`, never on commit, so local commits stay offline and cheap.
-      #
-      # --force is required because a hook has no terminal to answer clasp's
-      # "overwrite the remote manifest?" prompt, which would otherwise hang.
       - id: clasp-push
         name: clasp push (deploy to Apps Script)
-        entry: clasp
-        args: [push, --force]
+        entry: bash -c 'set -o pipefail; clasp push 2>&1 | cat'
         language: node
         additional_dependencies: ['@google/clasp@3.4.0']
         stages: [pre-push]
