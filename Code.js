@@ -39,15 +39,16 @@ function buildSearchPatterns(values) {
   // to archive. These vendor addresses are the same for every organization,
   // so they are safe to keep in version control.
   const searchPatterns = [
-    {type: 'from', address: 'no-reply@pagerduty.com'},
     {type: 'replyto', address: 'health@aws.com'},
     {type: 'replyto', address: 'f-no-reply@akamai.com'},
+    {type: 'from', address: 'no-reply@pagerduty.com'},
     {type: 'from', address: 'no-reply@digicert.com'},
     {type: 'from', address: 'azure-noreply@microsoft.com'},
     {type: 'from', address: 'no-reply@dtdg.com'},
     {type: 'from', address: 'no-reply@vanta.com'},
     {type: 'from', address: `jira@${values.companySlug}.atlassian.net`},
     {type: 'from', address: `confluence@${values.companySlug}.atlassian.net`},
+    {type: 'from', address: 'gemini-notes@google.com'},
   ];
   return searchPatterns;
 }
