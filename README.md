@@ -168,31 +168,37 @@ Open the project in the Apps Script editor:
 npx @google/clasp open-script
 ```
 
-In `Code.js`, edit the `patterns` array inside `buildSearchPatterns()` to match the mail *you* want
+In `Code.js`, edit the `patterns` object inside `buildSearchPatterns()` to match the mail *you* want
 archived, and set `daysOld` in `archiveOldEmails()` to how long a thread should linger before it
-gets archived:
+gets archived. Each key is a search operator and its value is the list of addresses to match with
+that operator:
 
 ```js
 function buildSearchPatterns(values) {
-  const patterns = [
-    {type: 'from', address: 'no-reply@example.com'},
-    {type: 'replyto', address: 'alerts@example.com'},
-    {type: 'to', address: 'my-alias@example.com'},
-  ];
+  const patterns = {
+    from: [
+      'no-reply@example.com',
+      'alerts@example.net',
+    ],
+    replyto: [
+      'alerts@example.com',
+    ],
+    to: [
+      'my-alias@example.com',
+    ],
+  };
 
   // Patterns that need a value from private_values.js go behind a check, so
   // the script still works for anyone who skipped that file.
   if (values.companySlug) {
-    patterns.push(
-        {type: 'from', address: `jira@${values.companySlug}.atlassian.net`},
-    );
+    patterns.from.push(`jira@${values.companySlug}.atlassian.net`);
   }
 
   return patterns;
 }
 ```
 
-`type` is any Gmail search operator that takes an address — `from`, `to`, `cc`, `replyto`. The
+A key is any Gmail search operator that takes an address — `from`, `to`, `cc`, `replyto`. The
 resulting query looks like `from:no-reply@example.com older_than:14d is:inbox`.
 
 You can also edit `Code.js` locally and re-run `npx @google/clasp push` — that is the intended

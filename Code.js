@@ -9,14 +9,6 @@
 /**
  * Reads the values supplied by the optional private_values.js file.
  *
- * Apps Script has no `require`, so there is nothing to include here: every
- * file in a project is evaluated into one shared global scope, and
- * private_values.js contributes to it by assigning `globalThis.PRIVATE_VALUES`
- * (see private_values.example.js). Reading through `globalThis` rather than
- * probing a bare identifier is what makes the file genuinely optional -- a
- * missing property is `undefined`, whereas a bare identifier would be a
- * ReferenceError and would need a `typeof` guard to be safe.
- *
  * .clasp.json lists private_values.js first in `filePushOrder`, so it is the
  * first file in the project and its values are in place before anything else
  * runs.
@@ -29,34 +21,42 @@ function getPrivateValues() {
 }
 
 /**
- * Builds the list of sender patterns whose stale mail should be archived.
+ * Builds the sender patterns whose stale mail should be archived, grouped by
+ * the Gmail search operator that matches them.
  *
  * @param {!Object} values Private values, as returned by getPrivateValues().
- * @return {!Array<{type: string, address: string}>} The patterns to search.
+ * @return {!Object<string, !Array<string>>} Addresses to search, keyed by the
+ *     Gmail search operator to match them with.
  */
 function buildSearchPatterns(values) {
-  // [ACTION_REQUIRED]: Update this list with the search patterns you want
+  // [ACTION_REQUIRED]: Update these lists with the search patterns you want
   // to archive. These vendor addresses are the same for every organization,
   // so they are safe to keep in version control.
-  const searchPatterns = [
-    {type: 'from', address: 'azure-noreply@microsoft.com'},
-    {type: 'from', address: 'gemini-notes@google.com'},
-    {type: 'from', address: 'no-reply@digicert.com'},
-    {type: 'from', address: 'no-reply@dtdg.com'},
-    {type: 'from', address: 'no-reply@pagerduty.com'},
-    {type: 'from', address: 'no-reply@vanta.com'},
-    {type: 'from', address: 'noreply@registrar.amazon'},
-    {type: 'from', address: 'notifications@github.com'},
-    {type: 'from', address: 'ssl_isales@digicert.com'},
-    {type: 'from', address: 'sf-no-reply@akamai.com'},
-    {type: 'from', address: 'noreply@akamai.com'},
-    {type: 'from', address: 'microsoft-noreply@microsoft.com'},
-    {type: 'from', address: `confluence@${values.companySlug}.atlassian.net`},
-    {type: 'from', address: `jira@${values.companySlug}.atlassian.net`},
-    {type: 'header:Sender', address: 'calendar-notification@google.com'},
-    {type: 'replyto', address: 'f-no-reply@akamai.com'},
-    {type: 'replyto', address: 'health@aws.com'},
-  ];
+  const searchPatterns = {
+    'from': [
+      'azure-noreply@microsoft.com',
+      'gemini-notes@google.com',
+      'microsoft-noreply@microsoft.com',
+      'no-reply@digicert.com',
+      'no-reply@dtdg.com',
+      'no-reply@pagerduty.com',
+      'no-reply@vanta.com',
+      'noreply@akamai.com',
+      'noreply@registrar.amazon',
+      'notifications@github.com',
+      'sf-no-reply@akamai.com',
+      'ssl_isales@digicert.com',
+      `confluence@${values.companySlug}.atlassian.net`,
+      `jira@${values.companySlug}.atlassian.net`,
+    ],
+    'header:Sender': [
+      'calendar-notification@google.com',
+    ],
+    'replyto': [
+      'sf-no-reply@akamai.com',
+      'health@aws.com',
+    ],
+  };
   return searchPatterns;
 }
 
@@ -72,33 +72,35 @@ function archiveOldEmails() {
   console.log(
       `Starting archive process for emails older than ${daysOld} days...`);
 
-  for (const pattern of searchPatterns) {
-    const label = `${pattern.type}: ${pattern.address}`;
-    try {
-      // Match only threads that are still in the inbox and past the cutoff.
-      const query =
-          `${pattern.type}:${pattern.address} older_than:${daysOld}d is:inbox`;
-      const threads = GmailApp.search(query);
+  for (const [type, addresses] of Object.entries(searchPatterns)) {
+    for (const address of addresses) {
+      const label = `${type}: ${address}`;
+      try {
+        // Match only threads that are still in the inbox and past the cutoff.
+        const query = `${type}:${address} older_than:${daysOld}d is:inbox`;
+        const threads = GmailApp.search(query);
 
-      if (threads.length === 0) {
-        console.log(`No threads found for ${label}`);
-        continue;
-      }
-
-      console.log(`Found ${threads.length} threads for ${label}. Archiving...`);
-
-      for (let i = 0; i < threads.length; i++) {
-        try {
-          threads[i].moveToArchive();
-          threads[i].markRead();
-        } catch (threadError) {
-          console.error(
-              `Failed to archive a thread for ${label}: ` +
-              `${threadError.message}`);
+        if (threads.length === 0) {
+          console.log(`No threads found for ${label}`);
+          continue;
         }
+
+        console.log(
+            `Found ${threads.length} threads for ${label}. Archiving...`);
+
+        for (let i = 0; i < threads.length; i++) {
+          try {
+            threads[i].moveToArchive();
+            threads[i].markRead();
+          } catch (threadError) {
+            console.error(
+                `Failed to archive a thread for ${label}: ` +
+                `${threadError.message}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing pattern ${label}: ${error.message}`);
       }
-    } catch (error) {
-      console.error(`Error processing pattern ${label}: ${error.message}`);
     }
   }
 
