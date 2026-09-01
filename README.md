@@ -201,6 +201,27 @@ function buildSearchPatterns(values) {
 A key is any Gmail search operator that takes an address — `from`, `to`, `cc`, `replyto`. The
 resulting query looks like `from:no-reply@example.com older_than:14d is:inbox`.
 
+Some mail cannot be matched by address at all. Google Calendar invitations, updates, cancellations
+and RSVP replies are sent `From:` the human organizer rather than from Google, so they are matched
+on their subject instead — the `subject` key in `buildSearchPatterns()`. Because subject words like
+`Accepted` also appear in ordinary mail, every `subject` pattern is narrowed by the extra terms in
+`SEARCH_QUALIFIERS`, which require Google Calendar's own footer phrase and skip replies and
+forwards so human conversation about an event is left alone:
+
+```js
+const SEARCH_QUALIFIERS = {
+  'subject': '"Invitation from Google Calendar" -subject:Re -subject:Fwd',
+};
+```
+
+That turns the `invitation` pattern into `subject:invitation "Invitation from Google Calendar"
+-subject:Re -subject:Fwd older_than:14d is:inbox`. Add a key to `SEARCH_QUALIFIERS` to narrow
+another operator the same way.
+
+Note that Gmail's `header:` operator is not usable here: it only matches recently indexed mail, so a
+pattern like `header:Sender:calendar-notification@google.com` returns nothing once `older_than:` is
+applied.
+
 You can also edit `Code.js` locally and re-run `npx @google/clasp push` — that is the intended
 workflow if you want your changes tracked in git. Use `npx @google/clasp pull` to bring editor-side
 changes back down.

@@ -21,6 +21,25 @@ function getPrivateValues() {
 }
 
 /**
+ * Extra query terms required alongside a given search operator, keyed by that
+ * operator. Operators absent from this map are searched on their own.
+ *
+ * Google Calendar sends its invitations `From:` the human organizer rather
+ * than from Google, so a `from` pattern cannot catch them and the subject
+ * prefix is the only thing that marks a message as calendar mail. Those
+ * prefixes are too common to trust alone -- "Accepted:" also matches an
+ * ordinary Outlook RSVP or a vendor's "You accepted ..." notice -- so they are
+ * paired with the footer phrase Google Calendar puts in every one of these
+ * messages. Excluding replies and forwards leaves human conversation about an
+ * event alone even when it quotes the invitation underneath.
+ *
+ * @const {!Object<string, string>}
+ */
+const SEARCH_QUALIFIERS = {
+  'subject': '"Invitation from Google Calendar" -subject:Re -subject:Fwd',
+};
+
+/**
  * Builds the sender patterns whose stale mail should be archived, grouped by
  * the Gmail search operator that matches them.
  *
@@ -35,6 +54,7 @@ function buildSearchPatterns(values) {
   const searchPatterns = {
     'from': [
       'azure-noreply@microsoft.com',
+      'calendar-notification@google.com',
       'gemini-notes@google.com',
       'microsoft-noreply@microsoft.com',
       'no-reply@digicert.com',
@@ -57,8 +77,22 @@ function buildSearchPatterns(values) {
       'specialist@akamai.com',
       'support@datadog.zendesk.com',
     ],
-    'header:Sender': [
-      'calendar-notification@google.com',
+    // Google Calendar invitations, updates, cancellations and RSVP replies.
+    // Gmail matches whole words in a subject, so 'invitation' also covers
+    // "Updated invitation:", "Invitation with note:" and "Updated invitation
+    // with note:", and "Canceled event" covers "Canceled event with note:".
+    // Every entry here is narrowed by SEARCH_QUALIFIERS['subject'].
+    //
+    // A `header:Sender` pattern for calendar-notification@google.com looks
+    // like the obvious way to match these and is not: Gmail's `header:`
+    // operator only matches recently indexed mail, so it returns nothing at
+    // all once `older_than:` is applied.
+    'subject': [
+      'invitation',
+      '"Canceled event"',
+      'Accepted',
+      'Declined',
+      '"Proposed new time"',
     ],
     'replyto': [
       'sf-no-reply@akamai.com',
@@ -91,7 +125,12 @@ function archiveOldEmails() {
       const label = `${type}: ${address}`;
       try {
         // Match only threads that are still in the inbox and past the cutoff.
-        const query = `${type}:${address} older_than:${daysOld}d is:inbox`;
+        const query = [
+          `${type}:${address}`,
+          SEARCH_QUALIFIERS[type],
+          `older_than:${daysOld}d`,
+          'is:inbox',
+        ].filter(Boolean).join(' ');
         const threads = GmailApp.search(query);
 
         if (threads.length === 0) {
