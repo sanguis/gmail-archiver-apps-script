@@ -48,6 +48,14 @@ function buildSearchPatterns(values) {
       'ssl_isales@digicert.com',
       `confluence@${values.companySlug}.atlassian.net`,
       `jira@${values.companySlug}.atlassian.net`,
+      'supportportal@mongodb.com',
+      'support@github.com',
+      'no-reply@rippling.com',
+      'mongodb-atlas@mongodb.com',
+      'no-reply-prod@pagerduty.com',
+      'noreply@github.com',
+      'specialist@akamai.com',
+      'support@datadog.zendesk.com',
     ],
     'header:Sender': [
       'calendar-notification@google.com',
@@ -55,6 +63,12 @@ function buildSearchPatterns(values) {
     'replyto': [
       'sf-no-reply@akamai.com',
       'health@aws.com',
+      'aws-marketing-email-replies@amazon.com',
+      'hello@toriihq.com',
+      'no-reply-aws@amazon.com',
+      'no-reply@docker.com',
+      'noreply@digicert.com',
+      'no-reply@amazonaws.com',
     ],
   };
   return searchPatterns;
